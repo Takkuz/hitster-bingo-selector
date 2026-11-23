@@ -111,8 +111,74 @@
       color: var(--text);
       border: 2px solid var(--accent);
     }
+    .timer {
+      --p: 1;
+      --timer-color: #38c4ef;
+      margin-top: 1.25rem;
+      display: grid;
+      gap: .5rem;
+    }
+    .timer.ending { --timer-color: #ff4d5e; }
+    #timer-display {
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      color: var(--timer-color);
+    }
+    .timer-bar {
+      height: .6rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--timer-color) 20%, transparent);
+      overflow: hidden;
+    }
+    .timer-bar::before {
+      content: '';
+      display: block;
+      height: 100%;
+      width: calc(var(--p) * 100%);
+      background: var(--timer-color);
+      box-shadow: 0 0 10px var(--timer-color);
+    }
+    .timer-actions {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: .5rem;
+    }
+    #timer-btn, #hitster-app {
+      font-size: 1.1rem;
+      padding: 1rem .75rem;
+      border-radius: 999px;
+    }
+    #timer-btn {
+      background: transparent;
+      color: var(--text);
+      border: 2px solid var(--timer-color);
+    }
+    #hitster-app {
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      white-space: nowrap;
+      text-decoration: none;
+      color: #fff;
+      background: #ff2d87;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #hitster-app:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+    .timer.done #timer-display { animation: blink .5s steps(2, jump-none) 4; }
+    @keyframes blink { 50% { opacity: .2; } }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
     @media (prefers-reduced-motion: reduce) {
       #result, button { transition: none; }
+      .timer.done #timer-display { animation: none; }
     }
   </style>
 </head>
@@ -131,6 +197,16 @@
     <button type="button" id="spin">Gira la Disco Ball</button>
 
     <div id="result" aria-live="polite" aria-atomic="true"></div>
+
+    <section class="timer" id="timer" aria-label="Timer">
+      <div id="timer-display" role="timer">30</div>
+      <div class="timer-bar" aria-hidden="true"></div>
+      <div id="timer-status" class="visually-hidden" aria-live="assertive"></div>
+      <div class="timer-actions">
+        <button type="button" id="timer-btn">⏱️ Avvia timer</button>
+        <a id="hitster-app" href="https://apps.apple.com/it/app/hitster/id1621483628" aria-label="Apri l'app Hitster">🎵 Hitster</a>
+      </div>
+    </section>
 
     <footer>
       Categorie tratte dal <a href="https://hitstergame.com/it-it/pages/regole-del-gioco-bingo" target="_blank" rel="noopener">regolamento ufficiale</a>.
@@ -222,6 +298,95 @@
     document.querySelectorAll('input[name="mode"]').forEach(r =>
       r.addEventListener('change', () => { result.innerHTML = ''; })
     );
+
+    const TIMER_MS = 30_000;
+    const timer = document.getElementById('timer');
+    const timerDisplay = document.getElementById('timer-display');
+    const timerStatus = document.getElementById('timer-status');
+    const timerBtn = document.getElementById('timer-btn');
+    let timerEnd = 0;
+    let timerInterval = 0;
+    let resetTimeout = 0;
+    const RESET_DELAY_MS = 5_000;
+    let audioCtx = null;
+
+    function renderTimer(leftMs) {
+      timerDisplay.textContent = Math.ceil(leftMs / 1000);
+      timer.style.setProperty('--p', leftMs / TIMER_MS);
+      timer.classList.toggle('ending', leftMs > 0 && leftMs <= 5000);
+    }
+
+    function beep() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, now + i * 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.3 + 0.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + i * 0.3);
+        osc.stop(now + i * 0.3 + 0.2);
+      }
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = 0;
+    }
+
+    function resetTimer() {
+      clearTimeout(resetTimeout);
+      resetTimeout = 0;
+      timer.classList.remove('done');
+      renderTimer(TIMER_MS);
+      timerBtn.textContent = '⏱️ Avvia timer';
+    }
+
+    function tickTimer() {
+      // Based on the end timestamp so throttled intervals (screen off, background) don't drift
+      const left = Math.max(0, timerEnd - Date.now());
+      renderTimer(left);
+      if (left === 0) {
+        stopTimer();
+        timer.classList.add('done');
+        timerStatus.textContent = 'Tempo scaduto!';
+        timerBtn.textContent = '🔁 Riavvia timer';
+        beep();
+        navigator.vibrate?.([300, 150, 300]);
+        resetTimeout = setTimeout(resetTimer, RESET_DELAY_MS);
+      }
+    }
+
+    timerBtn.addEventListener('click', () => {
+      if (timerInterval) {
+        stopTimer();
+        resetTimer();
+        timerStatus.textContent = 'Timer fermato';
+        return;
+      }
+      resetTimer();
+      // Created inside the click so mobile browsers allow audio playback later
+      audioCtx ??= new AudioContext();
+      audioCtx.resume();
+      timerStatus.textContent = `Timer avviato: ${TIMER_MS / 1000} secondi`;
+      timerBtn.textContent = '⏹️ Ferma timer';
+      timerEnd = Date.now() + TIMER_MS;
+      tickTimer();
+      timerInterval = setInterval(tickTimer, 100);
+    });
+
+    // The Hitster app exposes no public URL scheme: on Android an intent URL opens the
+    // app (or its Play Store page as fallback); elsewhere the App Store page offers "Open".
+    const hitsterLink = document.getElementById('hitster-app');
+    if (/android/i.test(navigator.userAgent)) {
+      hitsterLink.href = 'intent://#Intent;package=nl.jumbo.hitster;end';
+    } else if (!/iphone|ipad|ipod|macintosh/i.test(navigator.userAgent) || !('ontouchend' in document)) {
+      hitsterLink.href = 'https://hitstergame.com/it-it/';
+      hitsterLink.target = '_blank';
+      hitsterLink.rel = 'noopener';
+    }
 
     // Service workers only run over http(s); skip when opened as a local file.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
