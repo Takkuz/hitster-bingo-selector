@@ -1,5 +1,5 @@
 // Bump the version whenever any cached file changes so clients pick up the update.
-const CACHE = 'hitster-bingo-v4';
+const CACHE = 'hitster-bingo-v7';
 const ASSETS = [
   './',
   './index.html',

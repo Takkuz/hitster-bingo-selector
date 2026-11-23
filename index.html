@@ -25,7 +25,7 @@
       margin: 0;
       min-height: 100dvh;
       display: grid;
-      place-items: center;
+      place-items: start center;
       background: var(--bg);
       color: var(--text);
       padding: 1rem;
@@ -114,7 +114,7 @@
     .timer {
       --p: 1;
       --timer-color: #38c4ef;
-      margin-top: 1.25rem;
+      margin-top: 2.5rem;
       display: grid;
       gap: .5rem;
     }
@@ -140,32 +140,13 @@
       background: var(--timer-color);
       box-shadow: 0 0 10px var(--timer-color);
     }
-    .timer-actions {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      gap: .5rem;
-    }
-    #timer-btn, #hitster-app {
-      font-size: 1.1rem;
-      padding: 1rem .75rem;
-      border-radius: 999px;
-    }
     #timer-btn {
+      font-size: 1.2rem;
+      padding: 1rem 1.5rem;
       background: transparent;
       color: var(--text);
       border: 2px solid var(--timer-color);
     }
-    #hitster-app {
-      display: grid;
-      place-items: center;
-      font-weight: 700;
-      white-space: nowrap;
-      text-decoration: none;
-      color: #fff;
-      background: #ff2d87;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #hitster-app:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
     .timer.done #timer-display { animation: blink .5s steps(2, jump-none) 4; }
     @keyframes blink { 50% { opacity: .2; } }
     .visually-hidden {
@@ -202,10 +183,7 @@
       <div id="timer-display" role="timer">30</div>
       <div class="timer-bar" aria-hidden="true"></div>
       <div id="timer-status" class="visually-hidden" aria-live="assertive"></div>
-      <div class="timer-actions">
-        <button type="button" id="timer-btn">⏱️ Avvia timer</button>
-        <a id="hitster-app" href="https://apps.apple.com/it/app/hitster/id1621483628" aria-label="Apri l'app Hitster">🎵 Hitster</a>
-      </div>
+      <button type="button" id="timer-btn">⏱️ Avvia timer</button>
     </section>
 
     <footer>
@@ -376,17 +354,6 @@
       tickTimer();
       timerInterval = setInterval(tickTimer, 100);
     });
-
-    // The Hitster app exposes no public URL scheme: on Android an intent URL opens the
-    // app (or its Play Store page as fallback); elsewhere the App Store page offers "Open".
-    const hitsterLink = document.getElementById('hitster-app');
-    if (/android/i.test(navigator.userAgent)) {
-      hitsterLink.href = 'intent://#Intent;package=nl.jumbo.hitster;end';
-    } else if (!/iphone|ipad|ipod|macintosh/i.test(navigator.userAgent) || !('ontouchend' in document)) {
-      hitsterLink.href = 'https://hitstergame.com/it-it/';
-      hitsterLink.target = '_blank';
-      hitsterLink.rel = 'noopener';
-    }
 
     // Service workers only run over http(s); skip when opened as a local file.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
